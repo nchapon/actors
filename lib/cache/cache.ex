@@ -15,6 +15,7 @@ defmodule Cache do
     send(:cache, {:get, self(), ref, url})
     receive do
       {:ok,^ref,page} -> page
+      after 1000 -> nil #timeout
     end
   end
 
@@ -23,6 +24,7 @@ defmodule Cache do
     send(:cache, {:size, self(), ref})
     receive do
       {:ok, ^ref, size} -> size
+      after 1000 -> nil #timeout
     end
   end
 
@@ -44,5 +46,31 @@ defmodule Cache do
         loop(pages, size)
       {:terminate} -> # terminate request
     end
+  end
+end
+
+# Supervisor can start cache
+
+defmodule CacheSupervisor do
+
+  def start do
+    spawn(__MODULE__, :loop_system, [])
+  end
+
+  def loop do
+    pid=Cache.start_link
+    receive do
+      {:EXIT, ^pid, :normal} ->
+        IO.puts("Cache exited normally.")
+        :ok
+      {:EXIT, ^pid, reason} ->
+        IO.puts("Cache failed with reason #{inspect(reason)} - restarting it")
+    end
+    loop
+  end
+
+  def loop_system do
+    Process.flag(:trap_exit, true)
+    loop
   end
 end
